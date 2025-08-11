@@ -1,0 +1,51 @@
+name: Build OpenRV Windows Installer
+
+on:
+  workflow_dispatch: # run manually
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '5.15.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install PySide2
+
+      - name: Configure build
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build OpenRV
+        run: cmake --build build --config Release
+
+      - name: Deploy Qt DLLs
+        run: |
+          windeployqt build\Release\rv.exe
+
+      - name: Create installer (Inno Setup)
+        uses: Minionguyjpro/Inno-Setup-Action@v1.1.0
+        with:
+          path: installer.iss
+        continue-on-error: true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenRV-Windows
+          path: |
+            build/Release/**
